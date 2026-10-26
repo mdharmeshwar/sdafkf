@@ -1,6 +1,9 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "env": {
+    "VITE_API_BASE_URL": "https://windscope-backend-rmpp.onrender.com"
+  },
   "rewrites": [
     {
       "source": "/(.*)",
@@ -18,3 +21,4 @@
     }
   ]
 }
+
