@@ -153,6 +153,22 @@ export default function AccuracyAnalysis({ initialStartDate = '2026-01-01', init
           subtitle="Volume-Weighted % Error"
           tooltip={metrics?.wapeExplanation || "100 * sum(|Forecast - Actual|) / sum(Actual)"}
         />
+
+        <MetricCard
+          id="agg-metric-lead-time"
+          title="Avg Forecast Lead Time"
+          value={
+            (() => {
+              const leadTimes = (accuracyData?.matchedRecords || [])
+                .filter((r) => r.leadTimeHours !== null && r.leadTimeHours !== undefined)
+                .map((r) => r.leadTimeHours);
+              return leadTimes.length > 0 ? (leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length).toFixed(1) : null;
+            })()
+          }
+          unit="hrs"
+          subtitle="Hours prior to delivery"
+          tooltip="Average lead time between forecast publication and delivery interval start"
+        />
       </div>
 
       {/* Accuracy Charts */}

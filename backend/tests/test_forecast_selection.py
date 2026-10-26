@@ -157,3 +157,55 @@ def test_build_interval_records_full_day():
     assert records[0].absoluteError == 500.0
     # Remaining 47 intervals have no forecast or actual
     assert records[1].status == RecordStatus.DATA_UNAVAILABLE
+
+
+def test_forecast_published_exactly_at_cutoff_is_eligible():
+    interval_start = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    cutoff = datetime(2025, 12, 31, 12, 0, 0, tzinfo=timezone.utc)
+
+    # Forecast published exactly at 12:00:00Z
+    forecast = NormalizedForecast(interval_start, cutoff, 15500.0)
+
+    selected = ForecastService.select_forecast_for_interval(interval_start, cutoff, [forecast])
+    assert selected is not None
+    assert selected.generation == 15500.0
+    assert selected.publish_time == cutoff
+
+
+def test_later_forecast_cannot_affect_historical_result():
+    interval_start = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    cutoff = datetime(2025, 12, 31, 12, 0, tzinfo=timezone.utc)
+
+    f_early = NormalizedForecast(interval_start, datetime(2025, 12, 31, 10, 0, tzinfo=timezone.utc), 12000.0)
+    selected_initial = ForecastService.select_forecast_for_interval(interval_start, cutoff, [f_early])
+    assert selected_initial.generation == 12000.0
+
+    # Add subsequent forecasts published after the cutoff
+    f_post1 = NormalizedForecast(interval_start, datetime(2025, 12, 31, 15, 0, tzinfo=timezone.utc), 16000.0)
+    f_post2 = NormalizedForecast(interval_start, datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc), 20000.0)
+
+    selected_after = ForecastService.select_forecast_for_interval(
+        interval_start, cutoff, [f_early, f_post1, f_post2]
+    )
+    assert selected_after.generation == 12000.0
+    assert selected_after.publish_time == datetime(2025, 12, 31, 10, 0, tzinfo=timezone.utc)
+
+
+def test_timezone_normalization_preserves_ordering():
+    interval_start = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    cutoff = datetime(2025, 12, 31, 12, 0, tzinfo=timezone.utc)
+
+    # Parse ISO strings with different timezones:
+    # ts1: 11:30 UTC -> 11:30:00Z
+    # ts2: 13:45+02:00 -> 11:45:00Z (closer to cutoff)
+    # ts3: 14:15+02:00 -> 12:15:00Z (after cutoff)
+    f1 = NormalizedForecast(interval_start, parse_iso_timestamp("2025-12-31T11:30:00Z"), 10000.0)
+    f2 = NormalizedForecast(interval_start, parse_iso_timestamp("2025-12-31T13:45:00+02:00"), 13000.0)
+    f3 = NormalizedForecast(interval_start, parse_iso_timestamp("2025-12-31T14:15:00+02:00"), 19000.0)
+
+    selected = ForecastService.select_forecast_for_interval(interval_start, cutoff, [f1, f2, f3])
+    assert selected is not None
+    # f2 is at 11:45 UTC, which is <= 12:00 UTC and latest
+    assert selected.generation == 13000.0
+    assert selected.publish_time == datetime(2025, 12, 31, 11, 45, tzinfo=timezone.utc)
+
