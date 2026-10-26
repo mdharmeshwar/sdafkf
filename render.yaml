@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: windscope-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ELEXON_API_BASE_URL
+        value: https://data.elexon.co.uk/bmrs/api/v1
+      - key: CACHE_TTL_SECONDS
+        value: 300
+      - key: REQUEST_TIMEOUT_SECONDS
+        value: 20
+      - key: CORS_ORIGINS
+        value: "*"
+    plan: free
+    healthCheckPath: /api/health
