@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: windscope-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ELEXON_API_BASE_URL=https://data.elexon.co.uk/bmrs/api/v1
+      - HOST=0.0.0.0
+      - PORT=8000
+      - CACHE_TTL_SECONDS=300
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: windscope-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
